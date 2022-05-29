@@ -9,6 +9,7 @@ public class User {
     private final int id;
     private final Color color;
     private int countArmy = 1;
+    private boolean isAlive = true;
 
 //    private final int rating;
 
@@ -27,6 +28,14 @@ public class User {
 
     public int getCountArmy(){
         return countArmy;
+    }
+
+    public boolean isAlive() {
+        return isAlive;
+    }
+
+    public void userIsDead(){
+        isAlive = false;
     }
 
     // добавляем или удаляем войска

@@ -3,26 +3,55 @@ import com.google.gson.Gson;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class GameController {
     GameMap gameMap;
     ArrayList<User> users;
-    public GameController(int height, int width, int countCastles, ArrayList<User> users){
+    ArrayList<LinkedList<Attack>> movesUsers = new ArrayList<>();
+
+    public GameController(int height, int width, int countCastles, ArrayList<User> users) {
         gameMap = new GameMap(height, width, countCastles, users);
         this.users = users;
     }
 
-    public GameMap getGameMap(){
+    public GameMap getGameMap() {
         return gameMap;
     }
 
-    public void attack(Pair start, Pair end, boolean is50){
-        // TODO: должна быть проверка, что ход делает именно игрок, которй захватил еду клетку
+    public void addMove(int id, Pair start, Pair end, boolean is50) {
+        for (int i = 0; i < users.size(); i++) {
+            if (users.get(i).isAlive() && users.get(i).getId() == id) {
+                movesUsers.get(i).addLast(new Attack(start, end, is50));
+            }
+        }
+    }
+
+    // TODO: при умирании игрока, все ходы игрока должны быть уничтожены (можно в принципе ничего с ними не делать)
+    public void attack(Pair start, Pair end, boolean is50) {
+        // TODO: должна быть проверка, что ход делает именно игрок, который захватил еду клетку
         gameMap.attack(start, end, is50);
+        // тут нужно для каждого игрока брать один элемент из буфера и пытаться сделать ход
+        for (int i = 0; i < movesUsers.size(); i++) {
+            if (users.get(i).isAlive() && !movesUsers.get(i).isEmpty()) {
+                Attack attack = movesUsers.get(i).removeFirst();
+                // тут удаляем ходы, которые не должны будут выполниться
+                if (!gameMap.attack(attack.getStart(), attack.getEnd(), attack.isIs50())) {
+                    Pair endPosition = attack.getEnd();
+                    while (!movesUsers.get(i).isEmpty() && endPosition == movesUsers.get(i).getFirst().getStart()) {
+                        endPosition = movesUsers.get(i).removeFirst().getEnd();
+                    }
+                }
+            }
+        }
+        // TODO: также нужно давать сигнал, если не получилось сделать ход, чтобы все последующие ходы не отрисовывались
+        // ----- сама логика уже реализована
+        // т.к. ходы не должны отрисовываться, то нужно их тупо убрать(то есть если следующий ход начинается с прошлого
+        // конца, то нужно при неудачном перемещении удалить этот ход)
     }
 
     //
-    public void getGameMapForUser(User user){
+    public void getGameMapForUser(User user) {
         boolean haveUser = false;
         // TODO: тут может быть проблемаа с users -> users = null
 //        for(int i = 0; i < users.size(); i++){
@@ -37,83 +66,83 @@ public class GameController {
 
         Gson gson = new Gson();
 
-        try(FileWriter writer = new FileWriter("map1.json")){
+        try (FileWriter writer = new FileWriter("map1.json")) {
             ArrayList<ArrayList<DrawingBlock>> arrayDrawingMap = new ArrayList<ArrayList<DrawingBlock>>();
             ArrayList<ArrayList<Block>> map = gameMap.getGameMap();
 
             int height = gameMap.getHeight();
             int width = gameMap.getWidth();
 
-            for(int x = 0; x < height; x++){
+            for (int x = 0; x < height; x++) {
                 arrayDrawingMap.add(new ArrayList<DrawingBlock>());
-                for(int y = 0; y < width; y++){
+                for (int y = 0; y < width; y++) {
                     boolean haveNearbyUserBlock = false;
-                    if(0 <= x - 1 && 0 <= y - 1
+                    if (0 <= x - 1 && 0 <= y - 1
                             && (map.get(x - 1).get(y - 1) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x - 1).get(y - 1)).getUser() != null
-                            && ((CapturedBlock)map.get(x - 1).get(y - 1)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x - 1).get(y - 1)).getUser() != null
+                            && ((CapturedBlock) map.get(x - 1).get(y - 1)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(0 <= x - 1
+                    if (0 <= x - 1
                             && (map.get(x - 1).get(y) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x - 1).get(y)).getUser() != null
-                            && ((CapturedBlock)map.get(x - 1).get(y)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x - 1).get(y)).getUser() != null
+                            && ((CapturedBlock) map.get(x - 1).get(y)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(0 <= x - 1 && y + 1 < width
+                    if (0 <= x - 1 && y + 1 < width
                             && (map.get(x - 1).get(y + 1) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x - 1).get(y + 1)).getUser() != null
-                            && ((CapturedBlock)map.get(x - 1).get(y + 1)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x - 1).get(y + 1)).getUser() != null
+                            && ((CapturedBlock) map.get(x - 1).get(y + 1)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(0 <= y - 1
+                    if (0 <= y - 1
                             && (map.get(x).get(y - 1) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x).get(y - 1)).getUser() != null
-                            && ((CapturedBlock)map.get(x).get(y - 1)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x).get(y - 1)).getUser() != null
+                            && ((CapturedBlock) map.get(x).get(y - 1)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
 
-                    if((map.get(x).get(y) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x).get(y)).getUser() != null
-                            && ((CapturedBlock)map.get(x).get(y)).getUser().equals(user)){
+                    if ((map.get(x).get(y) instanceof CapturedBlock)
+                            && ((CapturedBlock) map.get(x).get(y)).getUser() != null
+                            && ((CapturedBlock) map.get(x).get(y)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(y + 1 < width
+                    if (y + 1 < width
                             && (map.get(x).get(y + 1) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x).get(y + 1)).getUser() != null
-                            && ((CapturedBlock)map.get(x).get(y + 1)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x).get(y + 1)).getUser() != null
+                            && ((CapturedBlock) map.get(x).get(y + 1)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(x + 1 < height && 0 <= y - 1
+                    if (x + 1 < height && 0 <= y - 1
                             && (map.get(x + 1).get(y - 1) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x + 1).get(y - 1)).getUser() != null
-                            && ((CapturedBlock)map.get(x + 1).get(y - 1)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x + 1).get(y - 1)).getUser() != null
+                            && ((CapturedBlock) map.get(x + 1).get(y - 1)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(x + 1 < height
+                    if (x + 1 < height
                             && (map.get(x + 1).get(y) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x + 1).get(y)).getUser() != null
-                            && ((CapturedBlock)map.get(x + 1).get(y)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x + 1).get(y)).getUser() != null
+                            && ((CapturedBlock) map.get(x + 1).get(y)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
 
-                    if(x + 1 < height && y + 1 < width
+                    if (x + 1 < height && y + 1 < width
                             && (map.get(x + 1).get(y + 1) instanceof CapturedBlock)
-                            && ((CapturedBlock)map.get(x + 1).get(y + 1)).getUser() != null
-                            && ((CapturedBlock)map.get(x + 1).get(y + 1)).getUser().equals(user)){
+                            && ((CapturedBlock) map.get(x + 1).get(y + 1)).getUser() != null
+                            && ((CapturedBlock) map.get(x + 1).get(y + 1)).getUser().equals(user)) {
                         haveNearbyUserBlock = true;
                     }
-                    if(haveNearbyUserBlock){
-                        if(map.get(x).get(y).getClass().equals(SimpleDrawableBlock.class)){
+                    if (haveNearbyUserBlock) {
+                        if (map.get(x).get(y).getClass().equals(SimpleDrawableBlock.class)) {
                             arrayDrawingMap.get(x).add(new DrawingBlock(x, y, true, DrawingBlock.Type.Neutral));
                         }
-                        if(map.get(x).get(y).getClass().equals(MountainBlock.class)){
+                        if (map.get(x).get(y).getClass().equals(MountainBlock.class)) {
                             arrayDrawingMap.get(x).add(new DrawingBlock(x, y, true, DrawingBlock.Type.Wall));
                         }
-                        if(map.get(x).get(y).getClass().equals(FarmBlock.class)){
+                        if (map.get(x).get(y).getClass().equals(FarmBlock.class)) {
                             arrayDrawingMap.get(x).add(new DrawingBlock(x, y, true, DrawingBlock.Type.Farm));
                         }
-                        if(map.get(x).get(y).getClass().equals(CastleBlock.class)){
+                        if (map.get(x).get(y).getClass().equals(CastleBlock.class)) {
                             arrayDrawingMap.get(x).add(new DrawingBlock(x, y, true, DrawingBlock.Type.Castle));
                         }
                     } else {
